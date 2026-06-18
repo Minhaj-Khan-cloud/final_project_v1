@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest.dart' as tz;
@@ -16,16 +17,16 @@ const kPrimary = Color(0xFF0066CC);
 const kSecondary = Color(0xFF00CC99);
 const kBg = Color(0xFFF5F7FA);
 
-// ─── Global notification plugin instance ──────────────────────
+// ─── Global notification plugin ───────────────────────────────
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
 
-// ─── Schedule a planner notification ─────────────────────────
 Future<void> schedulePlanNotification({
   required int id,
   required String title,
   required DateTime scheduledTime,
 }) async {
+  if (kIsWeb) return;
   try {
     await flutterLocalNotificationsPlugin.zonedSchedule(
       id,
@@ -42,16 +43,18 @@ Future<void> schedulePlanNotification({
           icon: '@mipmap/ic_launcher',
         ),
       ),
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      androidScheduleMode: AndroidScheduleMode.inexact,
       uiLocalNotificationDateInterpretation:
           UILocalNotificationDateInterpretation.absoluteTime,
     );
   } catch (_) {}
 }
 
-// ─── Cancel a scheduled notification ─────────────────────────
 Future<void> cancelPlanNotification(int id) async {
-  await flutterLocalNotificationsPlugin.cancel(id);
+  if (kIsWeb) return;
+  try {
+    await flutterLocalNotificationsPlugin.cancel(id);
+  } catch (_) {}
 }
 
 const Map<String, List<String>> kCoursesByYear = {
@@ -110,24 +113,23 @@ const Map<String, List<String>> kCoursesByYear = {
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // ── Timezone initialize ──────────────────────────────────
-  tz.initializeTimeZones();
-  tz.setLocalLocation(tz.getLocation('Asia/Dhaka'));
+  // ── Notification initialize (Android only) ───────────────
+  if (!kIsWeb) {
+    tz.initializeTimeZones();
+    tz.setLocalLocation(tz.getLocation('Asia/Dhaka'));
 
-  // ── Notification plugin initialize ───────────────────────
-  const AndroidInitializationSettings androidSettings =
-      AndroidInitializationSettings('@mipmap/ic_launcher');
-  const InitializationSettings initSettings =
-      InitializationSettings(android: androidSettings);
-  await flutterLocalNotificationsPlugin.initialize(initSettings);
+    const AndroidInitializationSettings androidSettings =
+        AndroidInitializationSettings('@mipmap/ic_launcher');
+    const InitializationSettings initSettings =
+        InitializationSettings(android: androidSettings);
+    await flutterLocalNotificationsPlugin.initialize(initSettings);
 
-  // ── Request notification permission (Android 13+) ────────
-  await flutterLocalNotificationsPlugin
-      .resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin>()
-      ?.requestNotificationsPermission();
+    await flutterLocalNotificationsPlugin
+        .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>()
+        ?.requestNotificationsPermission();
+  }
 
-  // ── Supabase initialize ──────────────────────────────────
   await Supabase.initialize(url: _supabaseUrl, anonKey: _supabaseAnonKey);
 
   runApp(const LUCollabApp());

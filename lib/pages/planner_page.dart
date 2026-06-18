@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import '../main.dart';
 
 class PlannerPage extends StatefulWidget {
@@ -52,10 +53,34 @@ class _PlannerPageState extends State<PlannerPage> {
     final h = int.tryParse(parts[0]) ?? 0;
     final m = int.tryParse(parts[1]) ?? 0;
     final planDt = DateTime(dt.year, dt.month, dt.day, h, m);
-    if (planDt.isAfter(DateTime.now())) {
+    final now = DateTime.now();
+    final title = result['title'] as String;
+
+    // 24 hours before
+    final t24 = planDt.subtract(const Duration(hours: 24));
+    if (t24.isAfter(now)) {
+      await schedulePlanNotification(
+        id: notifId + 1000,
+        title: '⏰ 24 hours left: $title',
+        scheduledTime: t24,
+      );
+    }
+
+    // 1 hour before
+    final t1 = planDt.subtract(const Duration(hours: 1));
+    if (t1.isAfter(now)) {
+      await schedulePlanNotification(
+        id: notifId + 2000,
+        title: '⚡ 1 hour left: $title',
+        scheduledTime: t1,
+      );
+    }
+
+    // Exact time
+    if (planDt.isAfter(now)) {
       await schedulePlanNotification(
         id: notifId,
-        title: result['title'] as String,
+        title: '🔔 Time now: $title',
         scheduledTime: planDt,
       );
     }
@@ -79,9 +104,26 @@ class _PlannerPageState extends State<PlannerPage> {
         .single();
 
     final notifId = (res['id'] as String).hashCode.abs();
+
+    // Immediate notification to confirm plugin works
+    await flutterLocalNotificationsPlugin.show(
+      notifId + 9000,
+      'LU-Collab Planner',
+      '✅ Plan added: ${result['title']}',
+      const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'planner_channel',
+          'Planner Alerts',
+          channelDescription: 'Reminders for your upcoming academic plans',
+          importance: Importance.high,
+          priority: Priority.high,
+        ),
+      ),
+    );
+
     await _scheduleIfNeeded(result, notifId);
 
-    _fetch();
+    if (mounted) _fetch();
   }
 
   Future<void> _update(Map<String, dynamic> plan) async {
@@ -89,18 +131,37 @@ class _PlannerPageState extends State<PlannerPage> {
 
     if (result == null) return;
 
-    await supabase.from('planner').update({
-      'title': result['title'],
-      'description': result['description'],
-      'plan_date': result['plan_date'],
-      'plan_time': result['plan_time'],
-    }).eq('id', plan['id']);
+    try {
+      await supabase.from('planner').update({
+        'title': result['title'],
+        'description': result['description'],
+        'plan_date': result['plan_date'],
+        'plan_time': result['plan_time'],
+      }).eq('id', plan['id']);
 
-    final notifId = (plan['id'] as String).hashCode.abs();
-    await cancelPlanNotification(notifId);
-    await _scheduleIfNeeded(result, notifId);
+      final notifId = (plan['id'] as String).hashCode.abs();
+      await cancelPlanNotification(notifId);
+      await cancelPlanNotification(notifId + 1000);
+      await cancelPlanNotification(notifId + 2000);
+      await _scheduleIfNeeded(result, notifId);
 
-    _fetch();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Plan updated successfully!'),
+          backgroundColor: Color(0xFFC2185B),
+          behavior: SnackBarBehavior.floating,
+        ));
+        _fetch();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Error: $e'),
+          backgroundColor: Colors.redAccent,
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
+    }
   }
 
   Future<void> _delete(String id) async {
@@ -125,11 +186,30 @@ class _PlannerPageState extends State<PlannerPage> {
 
     if (ok != true) return;
 
-    final notifId = id.hashCode.abs();
-    await cancelPlanNotification(notifId);
-    await supabase.from('planner').delete().eq('id', id);
+    try {
+      final notifId = id.hashCode.abs();
+      await cancelPlanNotification(notifId);
+      await cancelPlanNotification(notifId + 1000);
+      await cancelPlanNotification(notifId + 2000);
+      await supabase.from('planner').delete().eq('id', id);
 
-    _fetch();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Plan deleted.'),
+          backgroundColor: Colors.grey,
+          behavior: SnackBarBehavior.floating,
+        ));
+        _fetch();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Error: $e'),
+          backgroundColor: Colors.redAccent,
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
+    }
   }
 
   Future<Map<String, dynamic>?> _showPlanDialog(
@@ -332,11 +412,13 @@ class _PlannerPageState extends State<PlannerPage> {
   }
 
   String _diffLabel(Duration diff) {
-    if (diff.inMinutes <= 5) return 'In ${diff.inMinutes} min ⚡';
-    if (diff.inMinutes < 60) return 'In ${diff.inMinutes} min';
-    if (diff.inHours == 1) return 'In 1 hour';
-    return 'In ${diff.inHours} hours';
+    if (diff.inMinutes <= 5) return '🔴 URGENT — In ${diff.inMinutes} min';
+    if (diff.inMinutes < 60) return '🔴 URGENT — In ${diff.inMinutes} min';
+    if (diff.inHours == 1) return '🟡 Upcoming — In 1 hour';
+    return '🟡 Upcoming — In ${diff.inHours} hours';
   }
+
+  bool _isUrgent(Duration diff) => diff.inMinutes > 0 && diff.inMinutes <= 60;
 
   @override
   Widget build(BuildContext context) {
@@ -408,49 +490,79 @@ class _PlannerPageState extends State<PlannerPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(children: [
-                      const Icon(Icons.notifications_active_rounded,
-                          size: 16, color: Color(0xFFC2185B)),
-                      const SizedBox(width: 6),
-                      Text('Upcoming (${_upcomingAlerts.length})',
-                          style: const TextStyle(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 13,
-                              color: Color(0xFFC2185B))),
-                    ]),
-                    const SizedBox(height: 8),
-                    ..._upcomingAlerts.map((p) => Container(
-                          margin: const EdgeInsets.only(bottom: 8),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 14, vertical: 10),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFFF0F5),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                                color: const Color(0xFFC2185B)
-                                    .withValues(alpha: 0.3)),
-                          ),
-                          child: Row(children: [
-                            const Icon(Icons.alarm_rounded,
-                                size: 18, color: Color(0xFFC2185B)),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(p['title'] as String,
+                    ..._upcomingAlerts.map((p) {
+                      final diff = p['_diff'] as Duration;
+                      final urgent = _isUrgent(diff);
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: urgent
+                              ? const Color(0xFFFFEBEE)
+                              : const Color(0xFFFFF0F5),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                              color: (urgent
+                                      ? Colors.red
+                                      : const Color(0xFFC2185B))
+                                  .withValues(alpha: 0.35)),
+                        ),
+                        child: Row(children: [
+                          Icon(
+                              urgent
+                                  ? Icons.warning_amber_rounded
+                                  : Icons.alarm_rounded,
+                              size: 18,
+                              color: urgent
+                                  ? Colors.red
+                                  : const Color(0xFFC2185B)),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 7, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: urgent
+                                            ? Colors.red
+                                            : const Color(0xFFC2185B),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Text(
+                                        urgent ? 'URGENT' : 'UPCOMING',
                                         style: const TextStyle(
-                                            fontWeight: FontWeight.w700,
-                                            fontSize: 13)),
-                                    Text(_diffLabel(p['_diff'] as Duration),
-                                        style: const TextStyle(
-                                            fontSize: 11,
-                                            color: Color(0xFFC2185B),
-                                            fontWeight: FontWeight.w600)),
+                                            color: Colors.white,
+                                            fontSize: 9,
+                                            fontWeight: FontWeight.w800,
+                                            letterSpacing: 0.5),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Expanded(
+                                      child: Text(p['title'] as String,
+                                          style: const TextStyle(
+                                              fontWeight: FontWeight.w700,
+                                              fontSize: 13),
+                                          overflow: TextOverflow.ellipsis),
+                                    ),
                                   ]),
-                            ),
-                          ]),
-                        )),
+                                  const SizedBox(height: 3),
+                                  Text(_diffLabel(diff),
+                                      style: TextStyle(
+                                          fontSize: 11,
+                                          color: urgent
+                                              ? Colors.red
+                                              : const Color(0xFFC2185B),
+                                          fontWeight: FontWeight.w600)),
+                                ]),
+                          ),
+                        ]),
+                      );
+                    }),
                   ],
                 ),
               ),

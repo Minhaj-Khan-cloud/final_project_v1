@@ -112,34 +112,6 @@ class _AuthPageState extends State<AuthPage> {
     setState(() => _isLogin = true);
   }
 
-  Future<void> _forgotPassword() async {
-    final ctrl = TextEditingController();
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Reset Password'),
-        content: TextField(
-            controller: ctrl,
-            decoration: const InputDecoration(labelText: 'Email')),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel')),
-          ElevatedButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Send')),
-        ],
-      ),
-    );
-    if (ok != true || ctrl.text.isEmpty) return;
-    await supabase.auth.resetPasswordForEmail(
-      ctrl.text.trim(),
-      redirectTo: 'https://frfnpjlcnmuhitpftfgc.supabase.co',
-    );
-    _snack('Reset link sent to ${ctrl.text.trim()}');
-  }
-
   void _snack(String msg, {bool error = false}) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -224,21 +196,6 @@ class _AuthPageState extends State<AuthPage> {
                       const SizedBox(height: 12),
                       _buildPassword(),
                       const SizedBox(height: 8),
-                      if (_isLogin)
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: TextButton(
-                              onPressed: _forgotPassword,
-                              style: TextButton.styleFrom(
-                                foregroundColor: kPrimary,
-                                padding:
-                                    const EdgeInsets.symmetric(horizontal: 8),
-                              ),
-                              child: const Text('Forgot Password?',
-                                  style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600))),
-                        ),
                       const SizedBox(height: 16),
                       _loading
                           ? const Center(child: CircularProgressIndicator())

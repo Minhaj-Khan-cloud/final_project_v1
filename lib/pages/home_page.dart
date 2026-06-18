@@ -391,8 +391,8 @@ class _HomePageState extends State<HomePage> {
                                 Expanded(
                                   child: Text(
                                     _urgentCount > 0
-                                        ? 'You have $_urgentCount urgent plan${_urgentCount > 1 ? 's' : ''} within 1 hour!'
-                                        : 'You have $_alertCount upcoming plan${_alertCount > 1 ? 's' : ''} within 24 hours.',
+                                        ? '🔴 URGENT — $_urgentCount plan${_urgentCount > 1 ? 's' : ''} within 1 hour!'
+                                        : '🟡 UPCOMING — $_alertCount plan${_alertCount > 1 ? 's' : ''} within 24 hours.',
                                     style: TextStyle(
                                         fontSize: 13,
                                         fontWeight: FontWeight.w600,

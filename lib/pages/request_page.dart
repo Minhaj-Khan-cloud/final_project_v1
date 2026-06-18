@@ -1,11 +1,3 @@
-// ============================================================
-// request_page.dart
-// Resource Request Board — students যা দরকার সেটা post করে,
-// অন্যরা PDF দিয়ে help করতে পারে।
-// Database: requests table এবং request_fulfillments table।
-// Storage: vault bucket এ fulfillment PDF store হয়।
-// Points: Fulfill করলে +15, নিজের upload delete করলে -15।
-// ============================================================
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
@@ -62,10 +54,6 @@ class _RequestPageState extends State<RequestPage> {
     }).toList();
   }
 
-  // ── Fetch All Requests ────────────────────────────────────
-  // requests table থেকে সব request আনে।
-  // profiles join → requester এর avatar ও student ID পাওয়া যায়।
-  // request_fulfillments(count) → কতজন response করেছে সেটা count করে।
   Future<void> _fetch() async {
     setState(() => _loading = true);
     final data = await supabase
@@ -80,12 +68,6 @@ class _RequestPageState extends State<RequestPage> {
       });
   }
 
-  // ── Bottom sheet: Add OR Edit request ────────────────────────────
-  // ── Request Form Bottom Sheet ─────────────────────────────
-  // Add এবং Edit দুটোই এই একটি function handle করে।
-  // existing == null → নতুন request post করে
-  // existing != null → সেই request টা edit করে (subject/description update)
-  // Year → Course select করার same UI যেটা Vault upload এ ব্যবহার হয়।
   Future<void> _showRequestSheet({Map<String, dynamic>? existing}) async {
     String? selectedYear;
     String? selectedSubject = existing?['subject'] as String?;
@@ -260,9 +242,6 @@ class _RequestPageState extends State<RequestPage> {
     );
   }
 
-  // ── Post New Request ──────────────────────────────────────
-  // profiles table থেকে user এর নাম ও department নিয়ে
-  // requests table এ নতুন request insert করে।
   Future<void> _postRequest(String subject, String desc) async {
     final p = await supabase
         .from('profiles')
@@ -280,7 +259,6 @@ class _RequestPageState extends State<RequestPage> {
     _fetch();
   }
 
-  // Time ago calculator — "5m ago", "2h ago" format এ দেখায়
   String _timeAgo(String? raw) {
     if (raw == null) return '';
     final dt = DateTime.tryParse(raw);
@@ -470,7 +448,7 @@ class _RequestPageState extends State<RequestPage> {
   }
 }
 
-// ── Request Card ──────────────────────────────────────────────────────
+// Request Card
 class _RequestCard extends StatelessWidget {
   final Map<String, dynamic> request;
   final String currentUid, timeAgo;
@@ -660,7 +638,7 @@ class _RequestCard extends StatelessWidget {
   }
 }
 
-// ── Request Detail Page ────────────────────────────────────────────────
+// Request Detail Page
 class _RequestDetailPage extends StatefulWidget {
   final Map<String, dynamic> request;
   final String currentUid;
@@ -679,13 +657,6 @@ class _RequestDetailPageState extends State<_RequestDetailPage> {
     _fetch();
   }
 
-  // ── Fetch All Requests ────────────────────────────────────
-  // requests table থেকে সব request আনে।
-  // profiles join → requester এর avatar ও student ID পাওয়া যায়।
-  // request_fulfillments(count) → কতজন response করেছে সেটা count করে।
-  // ── Fetch Fulfillments ────────────────────────────────────
-  // request_fulfillments table থেকে এই request এর সব responses আনে।
-  // profiles join → responder এর নাম, avatar, student ID পাওয়া যায়।
   Future<void> _fetch() async {
     setState(() => _loading = true);
     final data = await supabase
@@ -700,12 +671,6 @@ class _RequestDetailPageState extends State<_RequestDetailPage> {
       });
   }
 
-  // ── Upload Fulfillment PDF ────────────────────────────────
-  // Request এর response এ PDF upload করার flow:
-  //   1. FilePicker দিয়ে PDF select করো
-  //   2. vault bucket এ "requests/userId/..." path এ upload করো
-  //   3. request_fulfillments table এ record insert করো
-  //   4. User +15 Points পায়
   Future<void> _upload() async {
     final result = await FilePicker.platform.pickFiles(
         type: FileType.custom, allowedExtensions: ['pdf'], withData: true);
@@ -749,11 +714,6 @@ class _RequestDetailPageState extends State<_RequestDetailPage> {
     }
   }
 
-  // ── Delete Own Fulfillment ────────────────────────────────
-  // দুটো step:
-  //   1. vault storage থেকে PDF file delete করো
-  //   2. request_fulfillments table থেকে record delete করো
-  //   3. User -15 Points হয় (আগে পেয়েছিল সেটা ফেরত)
   Future<void> _deleteFulfillment(Map<String, dynamic> f) async {
     await supabase.storage.from('vault').remove([f['file_path'] as String]);
     await supabase.from('request_fulfillments').delete().eq('id', f['id']);
@@ -762,8 +722,6 @@ class _RequestDetailPageState extends State<_RequestDetailPage> {
     _fetch();
   }
 
-  // ── Open Fulfillment PDF ──────────────────────────────────
-  // vault storage থেকে public URL নিয়ে external app এ খোলে।
   Future<void> _openPdf(String path) async {
     final url = supabase.storage.from('vault').getPublicUrl(path);
     final uri = Uri.parse(url);
