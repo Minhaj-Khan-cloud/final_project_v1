@@ -17,7 +17,6 @@ const kPrimary = Color(0xFF0066CC);
 const kSecondary = Color(0xFF00CC99);
 const kBg = Color(0xFFF5F7FA);
 
-// ─── Global notification plugin ───────────────────────────────
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
 
@@ -43,7 +42,7 @@ Future<void> schedulePlanNotification({
           icon: '@mipmap/ic_launcher',
         ),
       ),
-      androidScheduleMode: AndroidScheduleMode.inexact,
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       uiLocalNotificationDateInterpretation:
           UILocalNotificationDateInterpretation.absoluteTime,
     );
@@ -113,7 +112,6 @@ const Map<String, List<String>> kCoursesByYear = {
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // ── Notification initialize (Android only) ───────────────
   if (!kIsWeb) {
     tz.initializeTimeZones();
     tz.setLocalLocation(tz.getLocation('Asia/Dhaka'));

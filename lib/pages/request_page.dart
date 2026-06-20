@@ -13,7 +13,6 @@ class RequestPage extends StatefulWidget {
   State<RequestPage> createState() => _RequestPageState();
 }
 
-// Filter options for request board
 enum _ReqFilter { all, mine, fulfilled }
 
 class _RequestPageState extends State<RequestPage> {

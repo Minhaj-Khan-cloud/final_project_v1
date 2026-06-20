@@ -92,7 +92,6 @@ class _HomePageState extends State<HomePage> {
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 child: Column(children: [
-                  // ── Curved gradient header ──────────────────────────
                   Stack(children: [
                     Container(
                       width: double.infinity,
@@ -113,7 +112,6 @@ class _HomePageState extends State<HomePage> {
                           child: Padding(
                         padding: const EdgeInsets.fromLTRB(20, 16, 20, 40),
                         child: Column(children: [
-                          // Top row: greeting + logout
                           Row(children: [
                             Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -140,7 +138,6 @@ class _HomePageState extends State<HomePage> {
                             ),
                           ]),
                           const SizedBox(height: 22),
-                          // Profile glass card
                           GestureDetector(
                             onTap: () => _push(ProfilePage(profile: _profile!)),
                             child: Container(
@@ -242,7 +239,6 @@ class _HomePageState extends State<HomePage> {
                                                   fontSize: 11)),
                                         ),
                                     ])),
-                                // Points badge
                                 Container(
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: 14, vertical: 10),
@@ -274,8 +270,6 @@ class _HomePageState extends State<HomePage> {
                       )),
                     ),
                   ]),
-
-                  // ── Module grid ─────────────────────────────────────
                   Padding(
                     padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
                     child: Column(
@@ -352,7 +346,7 @@ class _HomePageState extends State<HomePage> {
                           ]),
                           const SizedBox(height: 24),
 
-                          // ── Planner alert strip ───────────────────────
+                          //  Planner alert strip
                           if (_alertCount > 0) ...[
                             Container(
                               width: double.infinity,
@@ -406,7 +400,7 @@ class _HomePageState extends State<HomePage> {
                             const SizedBox(height: 16),
                           ],
 
-                          // ── About banner ──────────────────────────────
+                          // About banner
                           Container(
                             padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
@@ -448,7 +442,6 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // ─── Planner Notification (Afsana) ───────────────────────
   int _alertCount = 0;
   int _urgentCount = 0;
 
@@ -481,7 +474,7 @@ class _HomePageState extends State<HomePage> {
   }
 }
 
-// ── Module Card ────────────────────────────────────────────────────────
+// Module Card
 class _ModuleCard extends StatelessWidget {
   final IconData icon;
   final String label, sub;

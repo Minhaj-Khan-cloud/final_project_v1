@@ -6,7 +6,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 import '../main.dart';
 
-// Filter options for the discussion page
 enum _Filter { all, mySubjects, myPosts, bookmarked, solved }
 
 const _teal1 = Color(0xFF004D40);
@@ -24,9 +23,8 @@ class _DiscussionPageState extends State<DiscussionPage> {
   bool _loading = true;
   final _uid = supabase.auth.currentUser?.id ?? '';
 
-  // New state for features
   _Filter _activeFilter = _Filter.all;
-  int _sortMode = 0; // 0=Latest  1=Oldest  2=Solved First
+  int _sortMode = 0;
   Set<String> _bookmarkIds = {};
   List<String> _selectedCourses = [];
   final _searchCtrl = TextEditingController();
@@ -62,7 +60,6 @@ class _DiscussionPageState extends State<DiscussionPage> {
     }
   }
 
-  // Load bookmark IDs for current user
   Future<void> _loadBookmarks() async {
     final data = await supabase
         .from('post_bookmarks')
@@ -74,7 +71,6 @@ class _DiscussionPageState extends State<DiscussionPage> {
     }
   }
 
-  // Load selected courses from profile for My Subjects filter
   Future<void> _loadSelectedCourses() async {
     final d = await supabase
         .from('profiles')
@@ -88,7 +84,6 @@ class _DiscussionPageState extends State<DiscussionPage> {
     }
   }
 
-  // Toggle bookmark for a post
   Future<void> _toggleBookmark(String postId) async {
     if (_bookmarkIds.contains(postId)) {
       await supabase
@@ -105,7 +100,6 @@ class _DiscussionPageState extends State<DiscussionPage> {
     }
   }
 
-  // Check if post subject matches user's selected courses
   bool _isMySubject(String? tag) {
     if (tag == null || tag.isEmpty || _selectedCourses.isEmpty) return false;
     return _selectedCourses.any((c) =>
@@ -113,15 +107,12 @@ class _DiscussionPageState extends State<DiscussionPage> {
         tag.toLowerCase().contains(c.split(' ').first.toLowerCase()));
   }
 
-  // Filter posts based on active filter + search
   List<Map<String, dynamic>> get _filtered {
     return _posts.where((p) {
-      // Search filter — post text or subject tag
       final matchSearch = _search.isEmpty ||
           (p['text'] as String).toLowerCase().contains(_search) ||
           ((p['subject_tag'] as String?) ?? '').toLowerCase().contains(_search);
 
-      // Active filter
       final matchFilter = switch (_activeFilter) {
         _Filter.all => true,
         _Filter.mySubjects => _isMySubject(p['subject_tag'] as String?),
@@ -134,11 +125,10 @@ class _DiscussionPageState extends State<DiscussionPage> {
     }).toList()
       ..sort((a, b) {
         if (_sortMode == 1) {
-          // Oldest first
           return (a['created_at'] as String)
               .compareTo(b['created_at'] as String);
         }
-        // Latest first (default)
+
         return (b['created_at'] as String).compareTo(a['created_at'] as String);
       });
   }
@@ -194,8 +184,6 @@ class _DiscussionPageState extends State<DiscussionPage> {
                       const Text('Ask anything — your peers can help',
                           style: TextStyle(color: Colors.grey, fontSize: 13)),
                       const SizedBox(height: 12),
-
-                      // Subject tag dropdown — from selected courses
                       if (_selectedCourses.isNotEmpty)
                         DropdownButtonFormField<String>(
                           value: selectedTag,
@@ -215,7 +203,6 @@ class _DiscussionPageState extends State<DiscussionPage> {
                         ),
                       if (_selectedCourses.isNotEmpty)
                         const SizedBox(height: 12),
-
                       TextField(
                         controller: textCtrl,
                         maxLines: 4,
@@ -406,11 +393,12 @@ class _DiscussionPageState extends State<DiscussionPage> {
                             style: const TextStyle(fontSize: 13)),
                         onPressed: () async {
                           final b = await _pickImage();
-                          if (b != null)
+                          if (b != null) {
                             setS(() {
                               newBytes = b;
                               removeImg = false;
                             });
+                          }
                         },
                         style: OutlinedButton.styleFrom(
                             foregroundColor: _teal2,
@@ -427,10 +415,10 @@ class _DiscussionPageState extends State<DiscussionPage> {
                           if (textCtrl.text.trim().isEmpty) return;
                           Navigator.pop(ctx);
                           String? url = existingUrl;
-                          if (newBytes != null)
+                          if (newBytes != null) {
                             url =
                                 await _uploadImage(newBytes!, prefix: 'edit_');
-                          else if (removeImg) url = null;
+                          } else if (removeImg) url = null;
                           await supabase.from('posts').update({
                             'text': textCtrl.text.trim(),
                             'image_url': url,
@@ -513,12 +501,10 @@ class _DiscussionPageState extends State<DiscussionPage> {
             style: TextStyle(fontWeight: FontWeight.w700)),
       ),
       body: Column(children: [
-        // ── Search + Filter chips ──────────────────────────
         Container(
           color: Colors.white,
           padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
           child: Column(children: [
-            // Search bar
             TextField(
               controller: _searchCtrl,
               decoration: InputDecoration(
@@ -538,7 +524,6 @@ class _DiscussionPageState extends State<DiscussionPage> {
               ),
             ),
             const SizedBox(height: 10),
-            // Filter chips
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(children: [
@@ -554,7 +539,6 @@ class _DiscussionPageState extends State<DiscussionPage> {
               ]),
             ),
             const SizedBox(height: 8),
-            // Sort options
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(children: [
@@ -568,8 +552,6 @@ class _DiscussionPageState extends State<DiscussionPage> {
             ),
           ]),
         ),
-
-        // ── Posts List ─────────────────────────────────────
         Expanded(
           child: _loading
               ? const Center(child: CircularProgressIndicator())
@@ -601,7 +583,6 @@ class _DiscussionPageState extends State<DiscussionPage> {
     );
   }
 
-  // Filter chip widget
   Widget _filterChip(String label, _Filter filter) {
     final active = _activeFilter == filter;
     return GestureDetector(
@@ -751,7 +732,6 @@ class _PostCard extends StatelessWidget {
             : Border.all(color: const Color(0xFFEEEEEE)),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        // Header
         Container(
           padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
           decoration: BoxDecoration(
@@ -778,7 +758,6 @@ class _PostCard extends StatelessWidget {
                   Text(timeAgo,
                       style: const TextStyle(fontSize: 11, color: Colors.grey)),
                 ])),
-            // Solved badge
             if (_isSolved)
               Container(
                 padding:
@@ -795,7 +774,6 @@ class _PostCard extends StatelessWidget {
                           fontWeight: FontWeight.w700)),
                 ]),
               ),
-            // Bookmark button
             IconButton(
               icon: Icon(
                 isBookmarked
@@ -809,7 +787,6 @@ class _PostCard extends StatelessWidget {
               constraints: const BoxConstraints(),
             ),
             const SizedBox(width: 4),
-            // Owner menu
             if (_isOwner)
               PopupMenuButton<String>(
                 icon: const Icon(Icons.more_vert, color: Colors.grey),
@@ -853,8 +830,6 @@ class _PostCard extends StatelessWidget {
               ),
           ]),
         ),
-
-        // Subject tag badge
         if (tag != null && tag.isNotEmpty)
           Padding(
             padding: const EdgeInsets.fromLTRB(14, 8, 14, 0),
@@ -876,16 +851,12 @@ class _PostCard extends StatelessWidget {
               ]),
             ),
           ),
-
-        // Post text
         Padding(
           padding: const EdgeInsets.fromLTRB(14, 10, 14, 0),
           child: Text(post['text'] as String,
               style: const TextStyle(
                   fontSize: 14, height: 1.6, color: Colors.black87)),
         ),
-
-        // Post image
         if (post['image_url'] != null &&
             (post['image_url'] as String).isNotEmpty)
           Padding(
@@ -918,8 +889,6 @@ class _PostCard extends StatelessWidget {
               ),
             ),
           ),
-
-        // View Comments button
         Padding(
           padding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
           child: TextButton.icon(
@@ -952,7 +921,7 @@ class _CommentsPageState extends State<_CommentsPage> {
   final _ctrl = TextEditingController();
   final _uid = supabase.auth.currentUser?.id ?? '';
   bool _sending = false;
-  Uint8List? _imgBytes; // selected image before sending
+  Uint8List? _imgBytes;
 
   @override
   void initState() {
@@ -971,7 +940,6 @@ class _CommentsPageState extends State<_CommentsPage> {
     }
   }
 
-  // Edit a comment — shows dialog with pre-filled text
   Future<void> _editComment(Map<String, dynamic> c) async {
     final ctrl = TextEditingController(text: c['text'] as String);
     final ok = await showDialog<bool>(
@@ -1005,7 +973,6 @@ class _CommentsPageState extends State<_CommentsPage> {
     if (_ctrl.text.trim().isEmpty && _imgBytes == null) return;
     setState(() => _sending = true);
 
-    // Upload image if selected
     String? imageUrl;
     if (_imgBytes != null) {
       final path = '$_uid/comment_${DateTime.now().millisecondsSinceEpoch}.jpg';
@@ -1088,7 +1055,6 @@ class _CommentsPageState extends State<_CommentsPage> {
                                 ? CrossAxisAlignment.end
                                 : CrossAxisAlignment.start,
                             children: [
-                              // Show name + student ID for others' comments
                               if (!mine)
                                 Padding(
                                     padding: const EdgeInsets.only(
@@ -1178,7 +1144,6 @@ class _CommentsPageState extends State<_CommentsPage> {
                                           ),
                                         ],
                                       ])),
-                              // Edit + Delete for own comments
                               if (mine)
                                 Padding(
                                     padding:
@@ -1225,7 +1190,6 @@ class _CommentsPageState extends State<_CommentsPage> {
               top: 10,
               bottom: MediaQuery.of(context).viewInsets.bottom + 12),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
-            // Image preview before sending
             if (_imgBytes != null)
               Padding(
                 padding: const EdgeInsets.only(bottom: 8),
@@ -1251,7 +1215,6 @@ class _CommentsPageState extends State<_CommentsPage> {
                 ]),
               ),
             Row(children: [
-              // Camera button
               GestureDetector(
                 onTap: () async {
                   final xf = await ImagePicker()

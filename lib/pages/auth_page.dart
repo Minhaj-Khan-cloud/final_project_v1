@@ -5,7 +5,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../main.dart';
 
 final _emailRx = RegExp(r'^[\w.+-]+@[\w-]+\.[a-zA-Z]{2,}$');
+
 final _passwordRx = RegExp(r'^(?=.*[A-Z]).{6,}$');
+
 final _studentRx = RegExp(r'^\d{16}$');
 
 class AuthPage extends StatefulWidget {
@@ -16,10 +18,14 @@ class AuthPage extends StatefulWidget {
 
 class _AuthPageState extends State<AuthPage> {
   bool _isLogin = true;
+
   bool _loading = false;
 
   final _emailCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
+
+  final _confirmPassCtrl = TextEditingController();
+
   bool _obscure = true;
 
   final _nameCtrl = TextEditingController();
@@ -43,6 +49,7 @@ class _AuthPageState extends State<AuthPage> {
   void dispose() {
     _emailCtrl.dispose();
     _passCtrl.dispose();
+    _confirmPassCtrl.dispose();
     _nameCtrl.dispose();
     _sidCtrl.dispose();
     super.dispose();
@@ -78,14 +85,23 @@ class _AuthPageState extends State<AuthPage> {
 
   Future<void> _register() async {
     if (_nameCtrl.text.trim().isEmpty) throw Exception('Enter full name');
+
     if (!_emailRx.hasMatch(_emailCtrl.text)) throw Exception('Invalid email');
+
     if (!_passwordRx.hasMatch(_passCtrl.text)) {
       throw Exception('Password: 6+ chars, 1 uppercase');
     }
+
+    if (_passCtrl.text != _confirmPassCtrl.text) {
+      throw Exception('Passwords do not match');
+    }
+
     if (!_studentRx.hasMatch(_sidCtrl.text)) {
       throw Exception('Student ID must be 16 digits');
     }
+
     if (_dept == null) throw Exception('Select department');
+
     if (_dob == null) throw Exception('Select date of birth');
 
     String? avatarUrl;
@@ -97,7 +113,7 @@ class _AuthPageState extends State<AuthPage> {
       avatarUrl = supabase.storage.from('avatars').getPublicUrl(path);
     }
 
-    await supabase.auth.signUp(
+    final response = await supabase.auth.signUp(
       email: _emailCtrl.text.trim(),
       password: _passCtrl.text,
       data: {
@@ -108,6 +124,11 @@ class _AuthPageState extends State<AuthPage> {
         if (avatarUrl != null) 'avatar_url': avatarUrl,
       },
     );
+
+    if (response.user?.identities?.isEmpty ?? false) {
+      throw Exception('This email is already registered. Please login.');
+    }
+
     _snack('Account created! Check your email to confirm.');
     setState(() => _isLogin = true);
   }
@@ -195,7 +216,8 @@ class _AuthPageState extends State<AuthPage> {
                       _buildEmail(),
                       const SizedBox(height: 12),
                       _buildPassword(),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 12),
+                      if (!_isLogin) _buildConfirmPassword(),
                       const SizedBox(height: 16),
                       _loading
                           ? const Center(child: CircularProgressIndicator())
@@ -380,6 +402,15 @@ class _AuthPageState extends State<AuthPage> {
                 color: Colors.grey),
             onPressed: () => setState(() => _obscure = !_obscure),
           ),
+        ),
+      );
+
+  Widget _buildConfirmPassword() => TextField(
+        controller: _confirmPassCtrl,
+        obscureText: _obscure,
+        decoration: _fieldDecoration(
+          label: 'Confirm Password',
+          icon: Icons.lock_outline,
         ),
       );
 
