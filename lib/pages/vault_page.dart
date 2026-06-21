@@ -179,12 +179,12 @@ class _VaultPageState extends State<VaultPage>
                       color: Colors.grey.shade300,
                       borderRadius: BorderRadius.circular(2))),
             )),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 0, 20, 14),
               child: Row(children: [
-                const Icon(Icons.upload_file_rounded, color: kPrimary),
-                const SizedBox(width: 10),
-                const Text('Upload Study Material',
+                Icon(Icons.upload_file_rounded, color: kPrimary),
+                SizedBox(width: 10),
+                Text('Upload Study Material',
                     style:
                         TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
               ]),

@@ -22,7 +22,6 @@ class _DiscussionPageState extends State<DiscussionPage> {
   List<Map<String, dynamic>> _posts = [];
   bool _loading = true;
   final _uid = supabase.auth.currentUser?.id ?? '';
-
   _Filter _activeFilter = _Filter.all;
   int _sortMode = 0;
   Set<String> _bookmarkIds = {};
@@ -50,7 +49,7 @@ class _DiscussionPageState extends State<DiscussionPage> {
     setState(() => _loading = true);
     final data = await supabase
         .from('posts')
-        .select('*, profiles:user_id(full_name)')
+        .select('*, profiles:user_id(full_name), comments(count)')
         .order('created_at', ascending: false);
     if (mounted) {
       setState(() {
@@ -107,12 +106,16 @@ class _DiscussionPageState extends State<DiscussionPage> {
         tag.toLowerCase().contains(c.split(' ').first.toLowerCase()));
   }
 
+  int _commentCount(Map<String, dynamic> p) {
+    final c = p['comments'];
+    return (c is List && c.isNotEmpty) ? (c[0]['count'] as int? ?? 0) : 0;
+  }
+
   List<Map<String, dynamic>> get _filtered {
     return _posts.where((p) {
       final matchSearch = _search.isEmpty ||
           (p['text'] as String).toLowerCase().contains(_search) ||
           ((p['subject_tag'] as String?) ?? '').toLowerCase().contains(_search);
-
       final matchFilter = switch (_activeFilter) {
         _Filter.all => true,
         _Filter.mySubjects => _isMySubject(p['subject_tag'] as String?),
@@ -120,7 +123,6 @@ class _DiscussionPageState extends State<DiscussionPage> {
         _Filter.bookmarked => _bookmarkIds.contains(p['id'] as String),
         _Filter.solved => p['solved'] as bool? ?? false,
       };
-
       return matchSearch && matchFilter;
     }).toList()
       ..sort((a, b) {
@@ -128,7 +130,6 @@ class _DiscussionPageState extends State<DiscussionPage> {
           return (a['created_at'] as String)
               .compareTo(b['created_at'] as String);
         }
-
         return (b['created_at'] as String).compareTo(a['created_at'] as String);
       });
   }
@@ -151,7 +152,6 @@ class _DiscussionPageState extends State<DiscussionPage> {
     final textCtrl = TextEditingController();
     Uint8List? imgBytes;
     String? selectedTag;
-
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -295,7 +295,6 @@ class _DiscussionPageState extends State<DiscussionPage> {
     final existingUrl = post['image_url'] as String?;
     Uint8List? newBytes;
     bool removeImg = false;
-
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -464,7 +463,6 @@ class _DiscussionPageState extends State<DiscussionPage> {
   Widget build(BuildContext context) {
     final solved = _posts.where((p) => p['solved'] as bool? ?? false).length;
     final filtered = _filtered;
-
     return Scaffold(
       backgroundColor: const Color(0xFFF4F6FA),
       appBar: AppBar(
@@ -567,6 +565,7 @@ class _DiscussionPageState extends State<DiscussionPage> {
                           currentUid: _uid,
                           timeAgo:
                               _timeAgo(filtered[i]['created_at'] as String?),
+                          commentCount: _commentCount(filtered[i]),
                           isBookmarked:
                               _bookmarkIds.contains(filtered[i]['id']),
                           onBookmark: () =>
@@ -685,6 +684,7 @@ class _Chip extends StatelessWidget {
 class _PostCard extends StatelessWidget {
   final Map<String, dynamic> post;
   final String currentUid, timeAgo;
+  final int commentCount;
   final bool isBookmarked;
   final VoidCallback onBookmark, onEdit, onDelete, onToggleSolved;
 
@@ -692,6 +692,7 @@ class _PostCard extends StatelessWidget {
     required this.post,
     required this.currentUid,
     required this.timeAgo,
+    required this.commentCount,
     required this.isBookmarked,
     required this.onBookmark,
     required this.onEdit,
@@ -721,7 +722,6 @@ class _PostCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tag = post['subject_tag'] as String?;
-
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
       decoration: BoxDecoration(
@@ -890,18 +890,51 @@ class _PostCard extends StatelessWidget {
             ),
           ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
-          child: TextButton.icon(
-            icon: Icon(Icons.comment_rounded,
-                size: 16, color: _teal2.withValues(alpha: 0.7)),
-            label: Text('View Comments',
-                style: TextStyle(
-                    fontSize: 13, color: _teal2.withValues(alpha: 0.8))),
-            onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (_) =>
-                        _CommentsPage(postId: post['id'] as String))),
+          padding: const EdgeInsets.fromLTRB(12, 6, 12, 10),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(mainAxisSize: MainAxisSize.min, children: [
+                Icon(Icons.comment_rounded,
+                    size: 15, color: _teal2.withValues(alpha: 0.7)),
+                const SizedBox(width: 5),
+                Text(
+                  commentCount > 0
+                      ? '$commentCount answer${commentCount == 1 ? '' : 's'}'
+                      : 'No answers yet',
+                  style: TextStyle(
+                      fontSize: 12,
+                      color: commentCount > 0
+                          ? Colors.grey.shade600
+                          : Colors.grey.shade400),
+                ),
+              ]),
+              GestureDetector(
+                onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) =>
+                            _CommentsPage(postId: post['id'] as String))),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: _teal2,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                    Text('View',
+                        style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600)),
+                    SizedBox(width: 4),
+                    Icon(Icons.arrow_forward_rounded,
+                        size: 12, color: Colors.white),
+                  ]),
+                ),
+              ),
+            ],
           ),
         ),
       ]),
@@ -972,7 +1005,6 @@ class _CommentsPageState extends State<_CommentsPage> {
   Future<void> _send() async {
     if (_ctrl.text.trim().isEmpty && _imgBytes == null) return;
     setState(() => _sending = true);
-
     String? imageUrl;
     if (_imgBytes != null) {
       final path = '$_uid/comment_${DateTime.now().millisecondsSinceEpoch}.jpg';
@@ -981,7 +1013,6 @@ class _CommentsPageState extends State<_CommentsPage> {
               const FileOptions(contentType: 'image/jpeg', upsert: false));
       imageUrl = supabase.storage.from('discussion').getPublicUrl(path);
     }
-
     await supabase.from('comments').insert({
       'post_id': widget.postId,
       'user_id': _uid,
