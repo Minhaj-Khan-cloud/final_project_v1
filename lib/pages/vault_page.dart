@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../main.dart';
 
@@ -752,6 +753,18 @@ class _ResourceCardState extends State<_ResourceCard> {
 
   bool get _isOwner => widget.res['uploader_id'] == widget.currentUid;
 
+  String _timeAgo(String? raw) {
+    if (raw == null) return '';
+    final dt = DateTime.tryParse(raw);
+    if (dt == null) return '';
+    final diff = DateTime.now().difference(dt.toLocal());
+    if (diff.inSeconds < 60) return 'just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    if (diff.inDays < 7) return '${diff.inDays}d ago';
+    return DateFormat('dd MMM yyyy').format(dt.toLocal());
+  }
+
   Color _subjectColor(String subject) {
     final s = subject.toLowerCase();
     if (s.contains('math') || s.contains('calc'))
@@ -902,8 +915,15 @@ class _ResourceCardState extends State<_ResourceCard> {
                           style: const TextStyle(
                               fontSize: 10, color: Colors.grey)),
                   ])),
-              Text('· ${res['department']}',
-                  style: const TextStyle(fontSize: 11, color: Colors.grey)),
+              Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                Text('· ${res['department']}',
+                    style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                if ((res['uploaded_at'] as String?) != null)
+                  Text(
+                    _timeAgo(res['uploaded_at'] as String?),
+                    style: TextStyle(fontSize: 10, color: Colors.grey.shade400),
+                  ),
+              ]),
             ]),
             const SizedBox(height: 10),
             GestureDetector(

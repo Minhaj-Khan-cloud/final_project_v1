@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'package:intl/intl.dart';
@@ -20,10 +22,21 @@ class _PlannerPageState extends State<PlannerPage> {
 
   final _uid = supabase.auth.currentUser?.id ?? '';
 
+  Timer? _refreshTimer;
+
   @override
   void initState() {
     super.initState();
     _fetch();
+    _refreshTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> _fetch() async {
@@ -368,6 +381,22 @@ class _PlannerPageState extends State<PlannerPage> {
                             return;
                           }
 
+                          if (time != null) {
+                            final selectedDt = DateTime(date!.year, date!.month,
+                                date!.day, time!.hour, time!.minute);
+                            if (selectedDt.isBefore(DateTime.now())) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                      'Selected time is in the past! Please choose a future time.'),
+                                  backgroundColor: Colors.redAccent,
+                                  behavior: SnackBarBehavior.floating,
+                                ),
+                              );
+                              return;
+                            }
+                          }
+
                           Navigator.pop(ctx, {
                             'title': titleCtrl.text.trim(),
                             'description': descCtrl.text.trim(),
@@ -396,9 +425,21 @@ class _PlannerPageState extends State<PlannerPage> {
 
   int get _upcoming => _plans.where((p) {
         final dt = DateTime.tryParse(p['plan_date'] as String? ?? '');
-
-        return dt != null &&
-            !dt.isBefore(DateTime.now().subtract(const Duration(days: 1)));
+        if (dt == null) return false;
+        final timeStr = p['plan_time'] as String?;
+        if (timeStr != null && timeStr.isNotEmpty) {
+          final parts = timeStr.split(':');
+          if (parts.length >= 2) {
+            final h = int.tryParse(parts[0]) ?? 0;
+            final m = int.tryParse(parts[1]) ?? 0;
+            final planDt = DateTime(dt.year, dt.month, dt.day, h, m);
+            return planDt.isAfter(DateTime.now());
+          }
+        }
+        final today = DateTime.now();
+        final planDate = DateTime(dt.year, dt.month, dt.day);
+        final todayDate = DateTime(today.year, today.month, today.day);
+        return !planDate.isBefore(todayDate);
       }).length;
 
   int get _past => _plans.length - _upcoming;
@@ -734,11 +775,24 @@ class _PlanTile extends StatelessWidget {
     final isToday =
         dt.year == today.year && dt.month == today.month && dt.day == today.day;
 
-    final isPast = dt.isBefore(DateTime(today.year, today.month, today.day));
+    final timeStr = plan['plan_time'] as String?;
+
+    bool isPast;
+    if (timeStr != null && timeStr.isNotEmpty) {
+      final parts = timeStr.split(':');
+      if (parts.length >= 2) {
+        final h = int.tryParse(parts[0]) ?? 0;
+        final m = int.tryParse(parts[1]) ?? 0;
+        final planDt = DateTime(dt.year, dt.month, dt.day, h, m);
+        isPast = planDt.isBefore(DateTime.now());
+      } else {
+        isPast = dt.isBefore(DateTime(today.year, today.month, today.day));
+      }
+    } else {
+      isPast = dt.isBefore(DateTime(today.year, today.month, today.day));
+    }
 
     final desc = plan['description'] as String? ?? '';
-
-    final timeStr = plan['plan_time'] as String?;
 
     String? formattedTime;
     if (timeStr != null && timeStr.isNotEmpty) {

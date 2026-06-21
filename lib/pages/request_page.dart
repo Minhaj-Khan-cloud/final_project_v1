@@ -624,8 +624,26 @@ class _RequestCard extends StatelessWidget {
                 const Spacer(),
                 TextButton.icon(
                   icon: const Icon(Icons.visibility_outlined, size: 15),
-                  label: const Text('View / Respond',
-                      style: TextStyle(fontSize: 12)),
+                  label: Row(mainAxisSize: MainAxisSize.min, children: [
+                    const Text('View / Respond',
+                        style: TextStyle(fontSize: 12)),
+                    if (count > 0) ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 7, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF6A1B9A),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text('$count',
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold)),
+                      ),
+                    ],
+                  ]),
                   onPressed: onTap,
                   style: TextButton.styleFrom(
                       foregroundColor: const Color(0xFF6A1B9A)),
