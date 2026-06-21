@@ -80,6 +80,7 @@ const Map<String, List<String>> kCoursesByYear = {
     'GED-1161 Chemistry',
     'PHY-2171 Electromagnetism and Modern Physics',
     'CSE-2211 Computer Algorithms and Complexity',
+    'CSE-2212 Computer Algorithms and Complexity Sessional',
     'CSE-2201 Theory of Computation',
     'CSE-2231 Data Communications',
     'CSE-2221 Digital Logic Design',
